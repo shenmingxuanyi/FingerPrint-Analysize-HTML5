@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>指纹</title>
+    <link rel="stylesheet" href="lib/bootstrap/3.3.4/css/bootstrap.css">
+    <link rel="stylesheet" href="lib/animate/animate.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+    <div class="row">
+        <div class="col-sm-4 col-sm-offset-2">
+            <div class="thumbnail">
+                <img id="img" alt="指纹分析">
+
+                <div class="caption">
+                    <h4 id="fuhelv"></h4>
+                    <h4 id="fuhelvPixe"></h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="thumbnail">
+                <table id="fingerPrint"></table>
+                <div class="caption">
+                    <h4 id="areaScale"></h4>
+                    <h4 id="areaParam"></h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-xs-12">
+            <input id="featureValueGT" type="range" min="0" max="255" value="50">
+        </div>
+        <div class="col-xs-12">
+            <input id="featureValueLT" type="range" min="0" max="255" value="205">
+        </div>
+        <div class="col-xs-12">
+            <input id="areaPixeLength" type="range" min="1" max="100" value="10">
+        </div>
+        <div class="col-xs-12">
+            <input id="areaScalePercent" type="range" min="1" max="100" value="10">
+        </div>
+    </div>
+    <div class="row" style="margin-top: 20px;">
+        <div class="col-xs-12">
+            <button id="isArea" class="btn btn-lg btn-block" data-is-area="0">划分区域块</button>
+        </div>
+    </div>
+</div>
+</body>
+<script src="lib/jquery/1.11.2/jquery.min.js"></script>
+<script src="lib/bootstrap/3.3.4/js/bootstrap.js"></script>
+<script src="js/fingerPrintAnalyse.js"></script>
+<script type="text/javascript">
+
+    //应用
+    var finger2dRGBAPixelArray = [];
+    $(function () {
+        img.src = "image/finger-6.bmp";
+        getImageData(img.src, function (imageData) {
+            finger2dRGBAPixelArray = imageData2RGBAPixels(imageData, this.width);
+            $("#areaPixeLength").attr("max", this.width);
+            initView($("#featureValueGT").val(), $("#featureValueLT").val(), $("#areaPixeLength").val(), $("#areaScalePercent").val(), finger2dRGBAPixelArray);
+            $("#featureValueGT,#featureValueLT,#areaPixeLength,#areaScalePercent").change(function () {
+                loadView($("#featureValueGT").val(), $("#featureValueLT").val(), $("#areaPixeLength").val(), $("#areaScalePercent").val());
+            });
+
+            $("#isArea").click(function () {
+                $(this).toggleClass('btn-info');
+                this.dataset.isArea = (this.dataset.isArea == 0 ? 1 : 0);
+                loadView($("#featureValueGT").val(), $("#featureValueLT").val(), $("#areaPixeLength").val(), $("#areaScalePercent").val());
+            });
+        });
+    });
+
+    function initView(featuresVlueGT, featuresVlueLT, areaPixeLengthValue, areaScalePercentValue, finger2dRGBAPixelArray) {
+        var _2dRGBAPixelArray = [];
+        for (var i = 0, n = finger2dRGBAPixelArray.length; i < n; i++) {
+            _2dRGBAPixelArray[i] = finger2dRGBAPixelArray[i].concat();
+        }
+
+        var featuresPixelGT = new RGBAPixel(featuresVlueGT, featuresVlueGT, featuresVlueGT, null);
+        var featuresPixelLT = new RGBAPixel(featuresVlueLT, featuresVlueLT, featuresVlueLT, null);
+        imagePixelAnalyse(featuresPixelGT, featuresPixelLT, _2dRGBAPixelArray, true);
+
+        var tr = null;
+        var count = 0;
+        for (var i = 0; i < _2dRGBAPixelArray.length; i++) {
+            tr = "<tr>";
+            for (var j = 0; j < _2dRGBAPixelArray[i].length; j++) {
+                tr += "<td id='td_" + i + "_" + j + "' class='" + _2dRGBAPixelArray[i][j] + "'></td>";
+                if (_2dRGBAPixelArray[i][j]) {
+                    count++;
+                }
+            }
+            tr += "</tr>";
+            $(fingerPrint).append($(tr));
+        }
+        $(fuhelvPixe).html("像素伐值：" + featuresVlueGT + "-" + featuresVlueLT);
+        $(areaParam).html("区域伐值：" + areaPixeLengthValue + "&nbsp;&nbsp;&nbsp;&nbsp;区域比率：" + areaScalePercentValue + "%");
+        $(areaScale).html("面积覆盖率：" + imageAreaAnalyse(_2dRGBAPixelArray, parseInt(areaPixeLengthValue), parseInt(areaScalePercentValue)).toFixed(3) + "%");
+        $(fuhelv).html("符合率：" + parseFloat(count / (_2dRGBAPixelArray.length * _2dRGBAPixelArray[0].length) * 100).toFixed(3) + "%");
+    };
+
+    function loadView(featuresVlueGT, featuresVlueLT, areaPixeLengthValue, areaScalePercentValue) {
+        var _2dRGBAPixelArray = [];
+        for (var i = 0, n = finger2dRGBAPixelArray.length; i < n; i++) {
+            _2dRGBAPixelArray[i] = finger2dRGBAPixelArray[i].concat();
+        }
+
+        var featuresPixelGT = new RGBAPixel(featuresVlueGT, featuresVlueGT, featuresVlueGT, null);
+        var featuresPixelLT = new RGBAPixel(featuresVlueLT, featuresVlueLT, featuresVlueLT, null);
+        imagePixelAnalyse(featuresPixelGT, featuresPixelLT, _2dRGBAPixelArray, true);
+
+        var tr = null;
+        var count = 0;
+
+        for (var i = 0; i < _2dRGBAPixelArray.length; i++) {
+            for (var j = 0; j < _2dRGBAPixelArray[i].length; j++) {
+                if (isArea.dataset.isArea == '1') {
+                    if (i % areaPixeLengthValue == 0 || j % areaPixeLengthValue == 0) {
+                        $("#td_" + i + "_" + j).attr("class", "blue");
+                    } else {
+                        $("#td_" + i + "_" + j).attr("class", _2dRGBAPixelArray[i][j]);
+                    }
+                } else {
+                    $("#td_" + i + "_" + j).attr("class", _2dRGBAPixelArray[i][j]);
+                }
+                if (_2dRGBAPixelArray[i][j]) {
+                    count++;
+                }
+            }
+        }
+        $(fuhelvPixe).html("像素伐值：" + featuresVlueGT + "-" + featuresVlueLT);
+        $(areaParam).html("区域伐值：" + areaPixeLengthValue + "&nbsp;&nbsp;&nbsp;&nbsp;区域比率：" + areaScalePercentValue + "%");
+        $(areaScale).html("面积覆盖率：" + imageAreaAnalyse(_2dRGBAPixelArray, parseInt(areaPixeLengthValue), parseInt(areaScalePercentValue)).toFixed(3) + "%");
+        $(fuhelv).html("符合率：" + parseFloat(count / (_2dRGBAPixelArray.length * _2dRGBAPixelArray[0].length) * 100).toFixed(3) + "%");
+    };
+
+</script>
+</html>
